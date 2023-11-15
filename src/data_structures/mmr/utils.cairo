@@ -30,7 +30,7 @@ fn compute_root(last_pos: felt252, peaks: Peaks) -> felt252 {
 // @notice Count the number of bits set to 1 in a 256-bit unsigned integer
 // @param n The 256-bit unsigned integer
 // @return The number of bits set to 1 in n
-fn count_ones(n: u256) -> u256 {
+fn count_ones(n: u32) -> u32 {
     let mut n = n;
     let mut count = 0;
     loop {
@@ -42,9 +42,78 @@ fn count_ones(n: u256) -> u256 {
     }
 }
 
-// @notice Convert a leaf index to an Merkle Mountain Range tree leaf index
+// @notice Convert a leaf index to an Merkle Mountain Range tree index
 // @param n The leaf index
 // @return The MMR index
-fn leaf_index_to_mmr_index(n: u256) -> u256 {
+fn leaf_index_to_mmr_index(n: u32) -> u32 {
     2 * n - 1 - count_ones(n - 1)
+}
+
+// @notice Convert a Merkle Mountain Range tree size to number of leaves
+// @param n MMR size
+// @result Number of leaves
+fn mmr_size_to_leaf_count(n: u32) -> u32 {
+    let mut mmr_size = n;
+    let bits = bit_length(mmr_size);
+    let mut i = pow(2, bits);
+    let mut leaf_count = 0;
+    loop {
+        if i == 0 {
+            break leaf_count;
+        }
+        let x = 2 * i - 1;
+        if x <= mmr_size {
+            mmr_size -= x;
+            leaf_count += i;
+        }
+        i /= 2;
+    }
+}
+
+
+// @notice Convert a number of leaves to number of peaks
+// @param leaf_count Number of leaves
+// @return Number of peaks
+fn leaf_count_to_peaks_count(leaf_count: u32) -> u32 {
+    count_ones(leaf_count)
+}
+
+// @notice Get the number of trailing ones in the binary representation of a number
+// @param n The number
+// @return Number of trailing ones
+fn trailing_ones(n: u32) -> u32 {
+    let mut n = n;
+    let mut count = 0;
+    loop {
+        if n % 2 == 0 {
+            break count;
+        }
+        n /= 2;
+        count += 1;
+    }
+}
+
+// @notice Get peak size and index of the peak the element is in
+// @param elements_count The size of the MMR (number of elements in the MMR)
+// @param element_index The index of the element in the MMR
+// @return (peak index, peak height)
+fn get_peak_info(elements_count: u32, element_index: u32) -> (u32, u32) {
+    let mut elements_count = elements_count;
+    let mut element_index = element_index;
+
+    let mut mountain_height = bit_length(elements_count);
+    let mut mountain_elements_count = pow(2, mountain_height) - 1;
+    let mut mountain_index = 0;
+    loop {
+        if mountain_elements_count <= elements_count {
+            if element_index <= mountain_elements_count {
+                break (mountain_index, mountain_height - 1);
+            }
+            elements_count -= mountain_elements_count;
+            element_index -= mountain_elements_count;
+            mountain_index += 1;
+        }
+        mountain_height -= 1;
+        mountain_elements_count /= 2;
+    }
 }
